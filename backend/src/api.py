@@ -33,9 +33,11 @@ db_drop_and_create_all()
 def get_drinks():
     try:
         drinks = Drink.query.order_by(Drink.id).all()
+        print('here')
         drinks_retrieved = [drink.short() for drink in drinks]
         if len(drinks_retrieved) == 0:
             abort(404)
+        print('here now!')
     
         return jsonify({
             'success': True,
@@ -55,11 +57,12 @@ def get_drinks():
 '''
 @app.route('/drinks-detail', methods=['GET'])
 @requires_auth('get:drinks-detail')
-def get_detailed_drinks():
+def get_detailed_drinks(payload):
     try:
         drinks = Drink.query.order_by(Drink.id).all()
         drinks_retrieved = [drink.long() for drink in drinks]
         if len(drinks_retrieved) == 0:
+            print('api.py line 63 error')
             abort(404)
     
         return jsonify({
@@ -67,6 +70,7 @@ def get_detailed_drinks():
             'drinks': drinks_retrieved
              })
     except:
+        print('api.py line 71 error')
         abort(422)
 
 
@@ -81,21 +85,23 @@ def get_detailed_drinks():
 '''
 @app.route('/drinks', methods=['POST'])
 @requires_auth('post:drinks')
-def add_drink():
+def add_drink(payload):
     form = request.get_json()
     new_title = form.get('title')
     new_recipe = form.get('recipe')
+    print(new_title, new_recipe)
 
     try:
-        drink = Drink(title=new_title, recipe=new_recipe)
-        drink.inset()
+        drink = Drink(title=new_title, recipe=json.dumps(new_recipe))
+        print(drink)
+        drink.insert()
         drink_inserted = [drink.long()]
-
         return jsonify({
             "success": True,
             "drinks": drink_inserted
         })
     except:
+        print('api.py error line 104')
         abort(422)
 
 
@@ -112,7 +118,7 @@ def add_drink():
 '''
 @app.route('/drinks/<id>', methods=['PATCH'])
 @requires_auth('patch:drinks')
-def edit_drink(id):
+def edit_drink(payload, id):
     form = request.get_json()
     
     try:
@@ -154,7 +160,7 @@ def edit_drink(id):
 '''
 @app.route('/drinks/<id>', methods=['DELETE'])
 @requires_auth('delete:drinks')
-def delete_drink(id):
+def delete_drink(payload, id):
     try:
         drink = Drink.query.filter(Drink.id == id).one_or_none()
         if drink is None:

@@ -1,5 +1,6 @@
 from http.client import UNAUTHORIZED
 import json
+import sys
 from flask import request, _request_ctx_stack, abort
 from functools import wraps
 from jose import jwt
@@ -32,21 +33,24 @@ class AuthError(Exception):
     return the token part of the header
 '''
 def get_token_auth_header():
-    if 'Authorisation' not in request.headers:
-        raise AuthError({
-                'status_code': 401,
-                'error': 'Unauthorised'
-            }, 401)
-    
-    header = request.headers['Authorisation']
-    header_split = header.split(' ')
+    header = request.headers.get('Authorization', None)
 
-    if len(header_split) != 2:
+    if not header:    
+        print('auth.py line 39 error')
+        print(sys.exc_info())
         raise AuthError({
                 'status_code': 401,
                 'error': 'Unauthorised'
             }, 401)
-    elif header_split[0].lower != 'bearer':
+    header_split = header.split(' ')
+    if len(header_split) != 2:
+        print('auth.py line 47 error')
+        raise AuthError({
+                'status_code': 401,
+                'error': 'Unauthorised'
+            }, 401)
+    elif header_split[0] != 'Bearer':
+        print('auth.py line 53 error')
         raise AuthError({
                 'status_code': 401,
                 'error': 'Unauthorised'
@@ -67,11 +71,13 @@ def get_token_auth_header():
 '''
 def check_permissions(permission, payload):
     if 'permissions' not in payload:
+        print('auth.py line 74 error')
         abort(400)
 
     if permission not in payload['permissions']:
+        print('auth.py line 78 error')
         raise AuthError({
-                'status_code': 401,
+                'status_code': 403,
                 'error': 'Forbidden'
             }, 403)
 
@@ -93,14 +99,16 @@ def check_permissions(permission, payload):
 def verify_decode_jwt(token):
     jsonurl = urlopen(f'https://{AUTH0_DOMAIN}/.well-known/jwks.json')
     jwks = json.loads(jsonurl.read())
+    tkn = token.split('/')
     unverified_header = jwt.get_unverified_header(token)
     rsa_key = {}
     if 'kid' not in unverified_header:
+        print('auth.py line 112 error')
         raise AuthError({
             'code': 'invalid_header',
             'description': 'Authorization malformed.'
         }, 401)
-
+    
     for key in jwks['keys']:
         if key['kid'] == unverified_header['kid']:
             rsa_key = {
@@ -119,25 +127,32 @@ def verify_decode_jwt(token):
                 audience=API_AUDIENCE,
                 issuer='https://' + AUTH0_DOMAIN + '/'
             )
-
             return payload
 
         except jwt.ExpiredSignatureError:
+            print('auth.py line 142 error')
+            print(sys.exc_info())
             raise AuthError({
                 'code': 'token_expired',
                 'description': 'Token expired.'
             }, 401)
 
         except jwt.JWTClaimsError:
+            print('auth.py line 150 error')
+            print(sys.exc_info())
             raise AuthError({
                 'code': 'invalid_claims',
                 'description': 'Incorrect claims. Please, check the audience and issuer.'
             }, 401)
         except Exception:
+            print('auth.py line 157 error')
+            print(sys.exc_info())
             raise AuthError({
                 'code': 'invalid_header',
                 'description': 'Unable to parse authentication token.'
             }, 400)
+    print('auth.py line 163 error')
+    print(sys.exc_info())
     raise AuthError({
                 'code': 'invalid_header',
                 'description': 'Unable to find the appropriate key.'
@@ -161,8 +176,11 @@ def requires_auth(permission=''):
             try:
                 payload = verify_decode_jwt(token)
             except:
+                print('auth.py line 188 error')
+                print(sys.exc_info())
                 abort(401)
-            check_permissions(payload)
+            
+            check_permissions(permission, payload)
             return f(payload, *args, **kwargs)
 
         return wrapper
